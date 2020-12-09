@@ -1,0 +1,75 @@
+install.packages("devtools")
+install.packages("sp")
+install.packages("raster")
+install.packages("rgdal")
+install.packages("scales")
+install.packages("xml2")
+install.packages("git2r")
+install.packages("usethis")
+install.packages("fftwtools")
+devtools::install_github("filipematias23/FIELDimageR")
+
+
+
+library(FIELDimageR)
+library(sp)
+library(sf)
+library(raster)
+library(rgdal)
+library(ggplot2)
+library(agricolae)
+library(reshape2)
+library(lme4)
+library(devtools)
+library(parallel)
+library(foreach)
+library(doParallel)
+
+setwd("G:/Drives compartilhados/Servidor gMAP/Membros da Gradua��o/Kulto/Projeto_martello/B8_py")
+diretorio = "G:/Drives compartilhados/Servidor gMAP/Membros da Gradua��o/Kulto/Projeto_martello/B8_py/TCI/"
+save_dir_jp2 = "G:/Drives compartilhados/Servidor gMAP/Membros da Gradua��o/Kulto/Projeto_martello/B8_py/Filter/jp2/"
+save_dir_csv = "G:/Drives compartilhados/Servidor gMAP/Membros da Gradua��o/Kulto/Projeto_martello/B8_py/Filter/csv/"
+lista_pastas  = list.files(diretorio,full.names = T);lista_pastas
+lista_imagens = list.files(lista_pastas,full.names = T,pattern = "TCI");lista_imagens
+
+iterador = 1:length(lista_imagens);iterador
+for (i in iterador) {
+RED <- raster::raster(lista_imagens[i], band = "1");RED
+GREEN <- raster::raster(lista_imagens[i], band = "2");GREEN
+BLUE <- raster::raster(lista_imagens[i], band = "3");BLUE
+  
+EX1 <- stack(RED,GREEN,BLUE);EX1
+EX1 <- aggregate(EX1,fact = 4);EX1
+#plotRGB(EX1)
+
+# extent=T (The whole image area will be the shapefile)
+EX.P.shapeFile<-fieldPolygon(EX1,extent = T)
+
+# Select one index to identify leaves and remove the background
+EX1.I1<- fieldIndex(mosaic = EX1,index = c("HUE","SI","BI"));EX1.I1
+
+# Removing the background
+EX1.R1<- fieldMask(mosaic = EX1, Red = 1, Green = 2, Blue = 3,index = "SI",
+                   cropValue = 0.1,
+                   cropAbove = F)
+#dev.off()
+par(mfrow=c(1,2))
+hist(EX1.I1$SI)
+plot(EX1.I1$SI)
+plot(EX1.R1$mask)
+
+out = paste0(save_dir_jp2,basename(lista_imagens[i]));out
+writeRaster(EX1.R1$mask, out,format = 'GTiff',overwrite = T)
+
+img_f_pts <-st_as_sf(rasterToPoints(EX1.R1$mask,spatial = TRUE,full.names = T));img_f_pts
+final1 <- sub(",","", unlist(img_f_pts$geometry, use.names = F));final1
+coord_y <- final1[seq_along(final1) %%2 == 0];coord_y
+coord_x <- final1[seq_along(final1) %%2 != 0];coord_x
+
+img_f_pts$geometry = NULL
+img_f_pts = cbind(img_f_pts,coord_x,coord_y);img_f_pts
+
+
+path = paste0(save_dir_csv,gsub(".jp2",".csv",basename(lista_imagens[i])));path
+write.csv(img_f_pts,path)
+}
