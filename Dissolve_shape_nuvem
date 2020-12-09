@@ -1,0 +1,30 @@
+library(sp)
+library(sf)
+library(raster)
+library(rgdal)
+library(stars)
+
+setwd("G:/Drives compartilhados/Servidor gMAP/Membros da Gradua��o/Kulto/Projeto_martello/B8_py")
+diretorio = "G:/Drives compartilhados/Servidor gMAP/Membros da Gradua��o/Kulto/Projeto_martello/B8_py/Filter_nuvem/jp2//"
+save_dir_shp = "G:/Drives compartilhados/Servidor gMAP/Membros da Gradua��o/Kulto/Projeto_martello/B8_py/shp_nuvem/"
+lista_imagens  = list.files(diretorio,full.names = T);lista_imagens
+
+for(i in 1:length(lista_imagens)){
+raster = raster::raster(lista_imagens[i])
+
+poly = rasterToPolygons(raster)
+
+poly_filtrado = poly[poly[[1]] == 0,];poly_filtrado
+
+path = paste0(save_dir_shp,gsub(".tif",".shp",basename(lista_imagens[i])));path
+writeOGR(poly_filtrado,path, driver = "ESRI Shapefile",layer = gsub(".tif","",basename(lista_imagens[i])))
+
+}
+for(i in 1:length(lista_imagens)){
+shape = readOGR(lista_imagens[i]);shape
+
+region <- gUnaryUnion(shape, id = shape@data$clipped)
+x <- as(region, "SpatialPolygonsDataFrame")
+path = paste0(save_dir_shp,gsub(".tif",".shp",basename(lista_imagens[i])));path
+writeOGR(x,path, driver = "ESRI Shapefile",layer = gsub(".tif","",basename(lista_imagens[i])))
+}
