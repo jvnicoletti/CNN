@@ -1,0 +1,46 @@
+library(FIELDimageR)
+library(sp)
+library(sf)
+library(raster)
+library(rgdal)
+library(ggplot2)
+library(agricolae)
+library(reshape2)
+library(lme4)
+library(devtools)
+library(parallel)
+library(foreach)
+library(doParallel)
+
+setwd("G:/My Drive/ESALQ/G-map/7� semestre/fieldimgr/Clin/")
+diretorio = "G:/My Drive/ESALQ/G-map/7� semestre/fieldimgr/Clin/"
+lista_imagens  = list.files(diretorio,full.names = T,pattern = ".png");lista_imagens
+EX1 <- stack(lista_imagens[1]);EX1
+EX1 <- aggregate(EX1,fact = 4);EX1
+plotRGB(EX1)
+
+# extent=T (The whole image area will be the shapefile)
+EX.P.shapeFile<-fieldPolygon(EX1,extent = T)
+
+# Select one index to identify leaves and remove the background
+EX1.I1<- fieldIndex(mosaic = EX1,index = c("GLI","HUE","BI"));EX1.I1
+
+# Removing the background
+EX1.R1<- fieldMask(mosaic = EX1, Red = 1, Green = 2, Blue = 3,index = "HUE",
+                   cropValue = 1.5,
+                   cropAbove = T)
+dev.off()
+par(mfrow=c(1,2))
+hist(EX1.I1$HUE)
+plot(EX1.I1$HUE)
+plot(EX1.R1$mask)
+plot(EX.P.shapeFile$fieldShape)
+
+
+# Counting the total number of seeds
+EX.P.Total<-fieldCount(mosaic = EX1.R1$mask, fieldShape = EX.P.shapeFile$fieldShape, minSize = 0.08, value = 1)
+
+final = as.data.frame(EX.P.Total$objectSel)
+
+path = paste0(diretorio,"/final_count_pequenas.csv")
+write.csv(final,path)
